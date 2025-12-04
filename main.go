@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var ollamaURL string
@@ -41,6 +44,37 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+
+	var reqData map[string]interface{}
+	if err := json.Unmarshal(body, &reqData); err != nil {
+		log.Printf("Error unmarshaling request: %v", err)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if images, ok := reqData["images"].([]interface{}); ok {
+		for i, img := range images {
+			if imgStr, ok := img.(string); ok {
+				cleaned := strings.ReplaceAll(imgStr, "\n", "")
+				cleaned = strings.ReplaceAll(cleaned, "\r", "")
+				cleaned = strings.ReplaceAll(cleaned, " ", "")
+				if _, err := base64.StdEncoding.DecodeString(cleaned); err != nil {
+					log.Printf("Invalid base64 in image %d: %v", i, err)
+					http.Error(w, "Invalid base64 in images", http.StatusBadRequest)
+					return
+				}
+				images[i] = cleaned
+			}
+		}
+		reqData["images"] = images
+	}
+
+	body, err = json.Marshal(reqData)
+	if err != nil {
+		log.Printf("Error re-marshaling request: %v", err)
+		http.Error(w, "Failed to process request", http.StatusInternalServerError)
+		return
+	}
 
 	url := ollamaURL + r.URL.Path
 	if r.URL.RawQuery != "" {
