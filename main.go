@@ -46,7 +46,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		url += "?" + r.URL.RawQuery
 	}
-	log.Printf("Proxying request to: %s", url)
+	log.Printf("Proxying request t: %s", url)
 	req, err := http.NewRequest(r.Method, url, bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("Error creating request: %v", err)
