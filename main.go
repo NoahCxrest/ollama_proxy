@@ -25,6 +25,7 @@ func main() {
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Incoming request: %s %s", r.Method, r.URL.Path)
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -35,6 +36,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		log.Printf("Error reading request body: %v", err)
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
@@ -44,8 +46,10 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		url += "?" + r.URL.RawQuery
 	}
+	log.Printf("Proxying request to: %s", url)
 	req, err := http.NewRequest(r.Method, url, bytes.NewBuffer(body))
 	if err != nil {
+		log.Printf("Error creating request: %v", err)
 		http.Error(w, "Failed to create request", http.StatusInternalServerError)
 		return
 	}
@@ -59,6 +63,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("Error proxying request to %s: %v", url, err)
 		http.Error(w, "Failed to proxy request", http.StatusBadGateway)
 		return
 	}
